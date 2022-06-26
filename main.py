@@ -30,6 +30,7 @@ class Player(pygame.sprite.Sprite):
         self.animation_countdown = .05
         self.animation_index = 0
         self.warmth = 500
+        self.Shooting = False
 
     def animation(self,dt):
         self.animation_countdown -= dt
@@ -100,7 +101,7 @@ class Enemy(pygame.sprite.Sprite):
                                 pygame.image.load('spirit_3.png'),
                                 pygame.image.load('spirit_4.png')]
         self.rect = self.image.get_rect(center = (x,y))
-        self.speed = 3
+        self.speed = 4
         self.health = 10
         self.animation_countdown = .05
         self.animation_index = 0
