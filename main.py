@@ -1,4 +1,3 @@
-from turtle import end_fill
 import pygame,math,random
 pygame.init()
 pygame.mixer.init()
@@ -13,7 +12,6 @@ character_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 fire_group = pygame.sprite.Group()
-high_score = 0
 
 
 class Player(pygame.sprite.Sprite):
@@ -190,23 +188,33 @@ class Fire(pygame.sprite.Sprite):
 
 
 class Button():
-    def __init__(self,image):
+    def __init__(self,image,action,y):
         self.image = image
         self.original_image = self.image
-        self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+        self.rect = self.image.get_rect(center = ((width/2),y))
+        self.action = action
+        self.y = y
+        self.click_sound = pygame.mixer.Sound('click.wav')
+
 
     def update(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             self.image = pygame.transform.scale(self.original_image,(208,112))
-            self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+            self.rect = self.image.get_rect(center = ((width/2),self.y))
             click = pygame.mouse.get_pressed()
             if click[0]:
-                game()
+                self.click_sound.play()
+                self.action()
         else:
             self.image = self.original_image
-            self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+            self.rect = self.image.get_rect(center = ((width/2),self.y))
 
         screen.blit(self.image,self.rect)
+
+class Storage():
+    def __init__(self):
+        self.high_score = 0
+storage = Storage()
 
 def write(word,size,x,y,color):
     text_surf = pygame.font.Font("public_pixel.TTF",size).render(word,True,color)
@@ -216,7 +224,7 @@ def write(word,size,x,y,color):
 
 
 def menu():
-    play_button = Button(pygame.image.load('play_button.png'))
+    play_button = Button(pygame.image.load('play_button.png'),game,(height/2))
     pygame.mixer.music.unload()
     pygame.mixer.music.load('menu_music.wav')
     pygame.mixer.music.play(-1)
@@ -228,13 +236,18 @@ def menu():
         screen.blit(pygame.image.load('menu_background.png'),(0,0))
         write('Frostburn',80,(width/2),100,(0,0,0))
         write('high score:',20,(width/2),200,(0,0,0))
-        write(str(high_score),20,(width/2),240,(0,0,0))
+        write(str(storage.high_score),20,(width/2),240,(0,0,0))
         play_button.update()
         pygame.display.update()
         clock.tick(60)
     
-def end():
-    
+def end(score):
+
+    exit_button = Button(pygame.image.load('exit_button.png'),menu,500)
+
+    if math.floor(score) > storage.high_score:
+        storage.high_score = math.floor(score)
+
     pygame.mixer.music.unload()
     pygame.mixer.music.load('end_music.wav')
     pygame.mixer.music.play(-1)
@@ -245,6 +258,12 @@ def end():
                 pygame.quit()
 
         screen.blit(pygame.image.load('background.png'),(0,0))
+        write('You Froze',60,(width/2),200,(145,65,49))
+        write('score:',30,(width/2)-50,300,(0,0,0))
+        write(str(math.floor(score)),30,(width/2)+70,300,(0,0,0))
+        exit_button.update()
+        screen.blit(pygame.image.load('bar.png'),(50,100))
+        screen.blit(pygame.image.load('flame.png'),(0,500))
         pygame.display.update()
         clock.tick(60)
 
@@ -254,7 +273,6 @@ def game():
     bullet_group.empty()
     enemy_group.empty()
     fire_group.empty()
-    #interface_group.empty()
 
     global player
     player = Player()
@@ -271,8 +289,8 @@ def game():
             if event.type == pygame.QUIT:
                 pygame.quit()
         player.warmth -= 1
-        if player.warmth <= 100:
-            end()
+        if player.warmth <= 0:
+            end(score)
 
         if len(enemy_group.sprites()) < 5:
             if random.randint(1,50) == 1:
@@ -286,7 +304,7 @@ def game():
         character_group.draw(screen)
 
         screen.blit(pygame.image.load('bar.png'),(50,100))
-        screen.blit(pygame.image.load('flame.png'),(0,(600-player.warmth)))
+        screen.blit(pygame.image.load('flame.png'),(0,(500-player.warmth)))
         
         score += dt
         write(str(math.floor(score)),40,60,50,(0,0,0))
