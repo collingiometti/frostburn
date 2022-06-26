@@ -1,3 +1,4 @@
+from turtle import end_fill
 import pygame,math,random
 pygame.init()
 pygame.mixer.init()
@@ -12,7 +13,7 @@ character_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 fire_group = pygame.sprite.Group()
-#interface_group = pygame.sprite.Group()
+high_score = 0
 
 
 class Player(pygame.sprite.Sprite):
@@ -86,26 +87,60 @@ class Player(pygame.sprite.Sprite):
             self.bullet_countdown = 0
             click = pygame.mouse.get_pressed()
             if click[0]:
-                angle = angle + random.randint(-10,10)
+                angle = angle + random.randint(-5,5)
                 Bullet(math.radians(angle))
                 self.bullet_countdown = .01
+                self.warmth -= 1.5
 
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self,x,y):
         super().__init__(main_group,enemy_group)
-        self.image = pygame.Surface((100,100))
-        self.image.fill((0,255,0))
+        self.image = pygame.image.load('spirit_1.png')
+        self.animation_cycle = [pygame.image.load('spirit_1.png'),
+                                pygame.image.load('spirit_2.png'),
+                                pygame.image.load('spirit_3.png'),
+                                pygame.image.load('spirit_4.png')]
         self.rect = self.image.get_rect(center = (x,y))
-        self.speed = 2
+        self.speed = 3
         self.health = 10
+        self.animation_countdown = .05
+        self.animation_index = 0
+        self.facing_left = False
+
+    def animation(self,dt):
+        self.animation_countdown -= dt
+        if self.animation_countdown <= 0:
+            self.animation_countdown = .05
+            if self.animation_index < len(self.animation_cycle) - 1:
+                self.animation_index +=1
+            else:
+                self.animation_index = 0
+
+        self.image = self.animation_cycle[self.animation_index]
+        if self.facing_left:
+            self.image = pygame.transform.flip(self.image, True, False)
     
     def update(self,dt):
         dx,dy = player.rect.centerx - self.rect.centerx, player.rect.centery - self.rect.centery
         hyp = math.sqrt((dx*dx)+(dy*dy))
         xv,yv = (dx / hyp)*self.speed, (dy / hyp)*self.speed
-        self.rect.x += xv
-        self.rect.y += yv
+        if xv > 0:
+            self.facing_left = False
+        elif xv < 0:
+            self.facing_left = True
+
+        if hyp >= 100:
+            self.rect.x += xv
+            self.rect.y += yv
+            self.animation(dt)
+        elif hyp >= 25:
+            self.rect.x += xv*3
+            self.rect.y += yv*3
+            self.image = pygame.image.load('spirit_charge.png')
+        else:
+            player.warmth -= 100
+            self.kill()
         
 
 class Bullet(pygame.sprite.Sprite):
@@ -134,11 +169,84 @@ class Bullet(pygame.sprite.Sprite):
 class Fire(pygame.sprite.Sprite):
     def __init__(self,pos):
         super().__init__(main_group,fire_group)
-        self.image = pygame.Surface((50,50))
-        self.image.fill((255,255,0))
+        self.image = pygame.image.load('fire_drop_1.png')
         self.rect = self.image.get_rect(center = pos)
+        self.animation_cycle = [pygame.image.load('fire_drop_1.png'),
+                                pygame.image.load('fire_drop_2.png'),
+                                pygame.image.load('fire_drop_3.png'),
+                                pygame.image.load('fire_drop_4.png')]
+        self.animation_countdown = 0.08
+        self.animation_index = 0
+
+    def update(self,dt):
+        self.animation_countdown -= dt
+        if self.animation_countdown <= 0:
+            self.animation_countdown = 0.08
+            if self.animation_index < len(self.animation_cycle) - 1:
+                self.animation_index +=1
+            else:
+                self.animation_index = 0
+        self.image = self.animation_cycle[self.animation_index]
 
 
+class Button():
+    def __init__(self,image):
+        self.image = image
+        self.original_image = self.image
+        self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+
+    def update(self):
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
+            self.image = pygame.transform.scale(self.original_image,(208,112))
+            self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+            click = pygame.mouse.get_pressed()
+            if click[0]:
+                game()
+        else:
+            self.image = self.original_image
+            self.rect = self.image.get_rect(center = ((width/2),(height/2)))
+
+        screen.blit(self.image,self.rect)
+
+def write(word,size,x,y,color):
+    text_surf = pygame.font.Font("public_pixel.TTF",size).render(word,True,color)
+    text_rect = text_surf.get_rect()
+    text_rect.center = (x,y)
+    screen.blit(text_surf,text_rect)
+
+
+def menu():
+    play_button = Button(pygame.image.load('play_button.png'))
+    pygame.mixer.music.unload()
+    pygame.mixer.music.load('menu_music.wav')
+    pygame.mixer.music.play(-1)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+
+        screen.blit(pygame.image.load('menu_background.png'),(0,0))
+        write('Frostburn',80,(width/2),100,(0,0,0))
+        write('high score:',20,(width/2),200,(0,0,0))
+        write(str(high_score),20,(width/2),240,(0,0,0))
+        play_button.update()
+        pygame.display.update()
+        clock.tick(60)
+    
+def end():
+    
+    pygame.mixer.music.unload()
+    pygame.mixer.music.load('end_music.wav')
+    pygame.mixer.music.play(-1)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+
+        screen.blit(pygame.image.load('background.png'),(0,0))
+        pygame.display.update()
+        clock.tick(60)
 
 def game():
     main_group.empty()
@@ -151,6 +259,8 @@ def game():
     global player
     player = Player()
 
+    score = 0
+
     pygame.mixer.music.unload()
     pygame.mixer.music.load('Gameplay_Music.wav')
     pygame.mixer.music.play(-1)
@@ -160,30 +270,27 @@ def game():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-
         player.warmth -= 1
-        if player.warmth <= 0:
-            pygame.quit()
+        if player.warmth <= 100:
+            end()
 
         if len(enemy_group.sprites()) < 5:
-            if random.randint(1,100) == 1:
+            if random.randint(1,50) == 1:
                 Enemy(random.randint(0,width),random.randint(0,height))
 
-        screen.fill((0,0,0))
+        screen.blit(pygame.image.load('background.png'),(0,0))
         main_group.update(dt)
         fire_group.draw(screen)
         bullet_group.draw(screen)
         enemy_group.draw(screen)
         character_group.draw(screen)
 
-        bar = pygame.Surface((20,500))
-        bar.fill((232,150,149))
-        screen.blit(bar,(50,100))
-
-        box = pygame.Surface((60,60))
-        box.fill((209,19,17))
-        screen.blit(box,(30,(600-player.warmth)))
+        screen.blit(pygame.image.load('bar.png'),(50,100))
+        screen.blit(pygame.image.load('flame.png'),(0,(600-player.warmth)))
+        
+        score += dt
+        write(str(math.floor(score)),40,60,50,(0,0,0))
 
         pygame.display.update()
 
-game()
+menu()
