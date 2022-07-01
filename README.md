@@ -1,4 +1,4 @@
-# Fireburn - CodeDay 2022
+# frostburn - CodeDay 2022
 
 This game was made during CodeDay 2022 within a 24 hour period by us two.
 
